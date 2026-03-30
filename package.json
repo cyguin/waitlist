@@ -1,0 +1,57 @@
+{
+  "name": "@cyguin/waitlist",
+  "version": "0.1.0",
+  "description": "A self-hosted, drop-in waitlist solution for indie builders",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "test": "vitest run",
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "waitlist",
+    "pre-launch",
+    "nextjs",
+    "sqlite",
+    "postgres",
+    "referral"
+  ],
+  "author": "Cyguin",
+  "license": "MIT",
+  "type": "module",
+  "peerDependencies": {
+    "better-sqlite3": "^9.0.0 || ^10.0.0 || ^11.0.0",
+    "postgres": "^3.0.0",
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/nanoid": "^2.1.0",
+    "@types/node": "^25.5.0",
+    "@types/pg": "^8.20.0",
+    "@types/react": "^18.3.28",
+    "@types/uuid": "^10.0.0",
+    "better-sqlite3": "^12.8.0",
+    "pg": "^8.20.0",
+    "postgres": "^3.4.8",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.2"
+  },
+  "dependencies": {
+    "nanoid": "^5.1.7",
+    "uuid": "^13.0.0"
+  }
+}
