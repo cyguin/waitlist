@@ -9,12 +9,16 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./react": {
+      "import": "./dist/react.js",
+      "types": "./dist/react.d.ts"
     }
   },
   "scripts": {
     "test": "vitest run",
-    "build": "tsup src/index.ts --format cjs,esm --dts",
-    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "build": "tsup",
+    "dev": "tsup --watch",
     "prepare": "npm run build"
   },
   "keywords": [
@@ -35,6 +39,7 @@
     "react-dom": ">=18"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.2",
     "@types/better-sqlite3": "^7.6.13",
     "@types/nanoid": "^2.1.0",
     "@types/node": "^25.5.0",
@@ -42,6 +47,7 @@
     "@types/react": "^18.3.28",
     "@types/uuid": "^10.0.0",
     "better-sqlite3": "^12.8.0",
+    "jsdom": "^29.0.1",
     "pg": "^8.20.0",
     "postgres": "^3.4.8",
     "react": "^18.3.1",
