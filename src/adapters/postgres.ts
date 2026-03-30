@@ -9,6 +9,7 @@ interface WaitlistRow {
   referral_code: string | null
   own_code: string
   position: number
+  referral_count: number
   invited_at: Date | null
   created_at: Date
 }
@@ -38,18 +39,19 @@ export class PostgresAdapter implements WaitlistAdapter {
     await this.sql`CREATE INDEX IF NOT EXISTS idx_waitlist_own_code ON ${this.sql(this.tableName)} (own_code)`
   }
 
-  private async calculatePosition(): Promise<number> {
-    const [{ count }] = await this.sql<[{ count: bigint }]>`SELECT COUNT(*) as count FROM ${this.sql(this.tableName)}`
-    return Number(count) + 1
+  private async calculateReferralCount(ownCode: string): Promise<number> {
+    const [{ count }] = await this.sql<[{ count: bigint }]>`SELECT COUNT(*) as count FROM ${this.sql(this.tableName)} WHERE referral_code = ${ownCode}`
+    return Number(count)
   }
 
-  private rowToSignup(row: WaitlistRow, position: number): Signup {
+  private rowToSignup(row: WaitlistRow): Signup {
     return {
       id: row.id,
       email: row.email,
       referralCode: row.referral_code,
       ownCode: row.own_code,
-      position,
+      position: row.position,
+      referralCount: row.referral_count,
       invitedAt: row.invited_at?.toISOString() || null,
       createdAt: row.created_at.toISOString()
     }
@@ -59,8 +61,12 @@ export class PostgresAdapter implements WaitlistAdapter {
     const [existing] = await this.sql<WaitlistRow[]>`SELECT * FROM ${this.sql(this.tableName)} WHERE email = ${email}`
     
     if (existing) {
-      const position = await this.calculatePosition()
-      return this.rowToSignup(existing, position)
+      const referralCount = await this.calculateReferralCount(existing.own_code)
+      return this.rowToSignup({
+        ...existing,
+        position: 1,
+        referral_count: referralCount
+      })
     }
 
     const { nanoid } = await import('nanoid')
@@ -77,8 +83,11 @@ export class PostgresAdapter implements WaitlistAdapter {
       throw new Error('Failed to insert signup')
     }
 
-    const position = await this.calculatePosition()
-    return this.rowToSignup(result, position)
+    return this.rowToSignup({
+      ...result,
+      position: 1,
+      referral_count: 0
+    })
   }
 
   async getCount(): Promise<number> {
@@ -86,16 +95,32 @@ export class PostgresAdapter implements WaitlistAdapter {
     return Number(count)
   }
 
-  async getAll(): Promise<Signup[]> {
-    const rows = await this.sql<WaitlistRow[]>`SELECT * FROM ${this.sql(this.tableName)} ORDER BY created_at ASC`
-    return Promise.all(rows.map(async (row: WaitlistRow) => {
-      const position = await this.calculatePosition()
-      return this.rowToSignup(row, position)
-    }))
+  async getAll(options?: { limit?: number; offset?: number }): Promise<Signup[]> {
+    const limit = options?.limit ?? 1000
+    const offset = options?.offset ?? 0
+
+    const rows = await this.sql<WaitlistRow[]>`
+      SELECT
+        w.id, w.email, w.referral_code, w.own_code, w.invited_at, w.created_at,
+        ROW_NUMBER() OVER (ORDER BY w.created_at ASC) AS position,
+        (SELECT COUNT(*) FROM ${this.sql(this.tableName)} r WHERE r.referral_code = w.own_code) AS referral_count
+      FROM ${this.sql(this.tableName)} w
+      ORDER BY w.created_at ASC
+      LIMIT ${limit} OFFSET ${offset}
+    `
+
+    return rows.map(row => this.rowToSignup(row))
   }
 
-  async markInvited(ids: string[]): Promise<void> {
-    if (ids.length === 0) return
-    await this.sql`UPDATE ${this.sql(this.tableName)} SET invited_at = NOW() WHERE id IN (${this.sql(ids)})`
+  async markInvited(ids: string[]): Promise<number> {
+    if (ids.length === 0) return 0
+    
+    const result = await this.sql`
+      UPDATE ${this.sql(this.tableName)} 
+      SET invited_at = NOW() 
+      WHERE id = ANY(${ids}) AND invited_at IS NULL
+    `
+    
+    return (result as { count: number }).count ?? ids.length
   }
 }

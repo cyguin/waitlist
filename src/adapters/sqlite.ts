@@ -9,6 +9,7 @@ interface WaitlistRow {
   referral_code: string | null
   own_code: string
   position: number
+  referral_count: number
   invited_at: string | null
   created_at: string
 }
@@ -48,13 +49,21 @@ export class SQLiteAdapter implements WaitlistAdapter {
     return result.position
   }
 
+  private calculateReferralCount(ownCode: string): number {
+    const result = this.db.prepare(`
+      SELECT COUNT(*) as count FROM ${this.tableName} WHERE referral_code = ?
+    `).get(ownCode) as { count: number }
+    return result.count
+  }
+
   private rowToSignup(row: WaitlistRow): Signup {
     return {
       id: row.id,
       email: row.email,
       referralCode: row.referral_code,
       ownCode: row.own_code,
-      position: this.calculatePosition(row.email),
+      position: row.position,
+      referralCount: row.referral_count,
       invitedAt: row.invited_at,
       createdAt: row.created_at
     }
@@ -64,7 +73,11 @@ export class SQLiteAdapter implements WaitlistAdapter {
     const existing = this.db.prepare(`SELECT * FROM ${this.tableName} WHERE email = ?`).get(email) as WaitlistRow | undefined
     
     if (existing) {
-      return this.rowToSignup(existing)
+      return this.rowToSignup({
+        ...existing,
+        position: this.calculatePosition(existing.email),
+        referral_count: this.calculateReferralCount(existing.own_code)
+      })
     }
 
     const id = nanoid()
@@ -76,7 +89,11 @@ export class SQLiteAdapter implements WaitlistAdapter {
     `).run(id, email, referralCode || null, ownCode)
 
     const inserted = this.db.prepare(`SELECT * FROM ${this.tableName} WHERE id = ?`).get(id) as WaitlistRow
-    return this.rowToSignup(inserted)
+    return this.rowToSignup({
+      ...inserted,
+      position: this.calculatePosition(inserted.email),
+      referral_count: 0
+    })
   }
 
   async getCount(): Promise<number> {
@@ -84,14 +101,31 @@ export class SQLiteAdapter implements WaitlistAdapter {
     return result.count
   }
 
-  async getAll(): Promise<Signup[]> {
-    const rows = this.db.prepare(`SELECT * FROM ${this.tableName} ORDER BY created_at ASC`).all() as WaitlistRow[]
+  async getAll(options?: { limit?: number; offset?: number }): Promise<Signup[]> {
+    const limit = options?.limit ?? 1000
+    const offset = options?.offset ?? 0
+
+    const rows = this.db.prepare(`
+      SELECT
+        w.id, w.email, w.referral_code, w.own_code, w.invited_at, w.created_at,
+        (SELECT COUNT(*) FROM ${this.tableName} r2 WHERE r2.created_at <= w.created_at) AS position,
+        (SELECT COUNT(*) FROM ${this.tableName} r WHERE r.referral_code = w.own_code) AS referral_count
+      FROM ${this.tableName} w
+      ORDER BY w.created_at ASC
+      LIMIT ? OFFSET ?
+    `).all(limit, offset) as WaitlistRow[]
+
     return rows.map(row => this.rowToSignup(row))
   }
 
-  async markInvited(ids: string[]): Promise<void> {
-    if (ids.length === 0) return
+  async markInvited(ids: string[]): Promise<number> {
+    if (ids.length === 0) return 0
     const placeholders = ids.map(() => '?').join(',')
-    this.db.prepare(`UPDATE ${this.tableName} SET invited_at = datetime('now') WHERE id IN (${placeholders})`).run(...ids)
+    const result = this.db.prepare(`
+      UPDATE ${this.tableName} 
+      SET invited_at = datetime('now') 
+      WHERE id IN (${placeholders}) AND invited_at IS NULL
+    `).run(...ids)
+    return result.changes
   }
 }

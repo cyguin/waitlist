@@ -4,7 +4,7 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 
 describe('SQLiteAdapter', () => {
   let adapter: SQLiteAdapter
-  let db: Database
+  let db: any
 
   beforeEach(() => {
     db = new Database(':memory:')

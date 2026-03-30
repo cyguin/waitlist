@@ -31,3 +31,10 @@ export interface UseWaitlistCountResult {
   loading: boolean
   error: boolean
 }
+
+export interface WaitlistAdminProps {
+  endpoint: string
+  adminSecret: string
+  pageSize?: number
+  className?: string
+}

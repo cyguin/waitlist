@@ -65,27 +65,29 @@ describe('WaitlistForm', () => {
   })
 
   it('shows referral link when showReferral is true', async () => {
-    let callCount = 0
-    vi.mocked(fetch).mockImplementation(() => {
-      callCount++
-      if (callCount === 1) {
+    vi.mocked(fetch).mockImplementation((() => {
+      let callCount = 0
+      return (): Promise<Response> => {
+        callCount++
+        if (callCount === 1) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ count: 10 })
+          } as unknown as Response)
+        }
         return Promise.resolve({
           ok: true,
-          json: async () => ({ count: 10 })
-        }) as Response
+          status: 201,
+          json: async () => ({
+            id: '1',
+            email: 'test@example.com',
+            ownCode: 'ABC123',
+            position: 11,
+            alreadyExists: false
+          })
+        } as unknown as Response)
       }
-      return Promise.resolve({
-        ok: true,
-        status: 201,
-        json: async () => ({
-          id: '1',
-          email: 'test@example.com',
-          ownCode: 'ABC123',
-          position: 11,
-          alreadyExists: false
-        })
-      }) as Response
-    })
+    })())
 
     render(
       <WaitlistForm
