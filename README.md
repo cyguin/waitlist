@@ -31,7 +31,13 @@ npm install better-sqlite3
 
 ## usage
 
-**1. init the waitlist**
+### Quick Start
+
+```bash
+npm install @cyguin/waitlist better-sqlite3
+```
+
+### 1. Init the Waitlist
 
 ```ts
 // lib/waitlist.ts
@@ -45,45 +51,138 @@ export const waitlist = createWaitlist({
 })
 ```
 
-**2. mount the API routes**
+### 2. Mount API Routes
 
 ```ts
-// app/api/waitlist/join/route.ts
-import { NextResponse } from 'next/server'
-import { waitlist } from '@/lib/waitlist'
+// app/api/join/route.ts
+import { NextRequest, NextResponse } from 'next/server'
+import { getAdapter } from '@/lib/db'
 
-export async function POST(request: Request) {
-  const { email, ref } = await request.json()
-  const result = await waitlist.join(email, ref)
+export async function POST(request: NextRequest) {
+  const adapter = await getAdapter()
+  await adapter.migrate()
   
-  return NextResponse.json(result.data, { status: result.status })
+  const { email, referralCode } = await request.json()
+  
+  if (!email || !email.includes('@')) {
+    return NextResponse.json({ error: 'Invalid email' }, { status: 422 })
+  }
+  
+  const signup = await adapter.insertSignup(email, referralCode)
+  return NextResponse.json({
+    id: signup.id,
+    email: signup.email,
+    ownCode: signup.ownCode,
+    position: signup.position,
+  }, { status: 201 })
 }
 ```
 
 ```ts
-// app/api/waitlist/count/route.ts
+// app/api/count/route.ts
 import { NextResponse } from 'next/server'
-import { waitlist } from '@/lib/waitlist'
+import { getAdapter } from '@/lib/db'
 
 export async function GET() {
-  const result = await waitlist.count()
-  return NextResponse.json(result.data)
+  const adapter = await getAdapter()
+  await adapter.migrate()
+  const count = await adapter.getCount()
+  return NextResponse.json({ count })
 }
 ```
 
-**3. use the core API directly**
+### 3. Add React Components
+
+```tsx
+// app/page.tsx
+'use client'
+import { WaitlistForm } from '@cyguin/waitlist/react'
+import { SocialProof } from '@cyguin/waitlist/react'
+
+export default function Home() {
+  return (
+    <div>
+      <WaitlistForm
+        action="/api/join"
+        countEndpoint="/api/count"
+        showReferral  // show referral link after signup
+      />
+      
+      <SocialProof endpoint="/api/count" />
+    </div>
+  )
+}
+```
+
+### 4. Admin Panel (Optional)
+
+Set an admin secret in your environment:
+
+```bash
+# .env.local
+ADMIN_SECRET=your-secret-here
+```
 
 ```ts
-import { waitlist } from '@/lib/waitlist'
+// app/api/admin/route.ts
+import { NextRequest, NextResponse } from 'next/server'
+import { getAdapter } from '@/lib/db'
 
-// Run migrations first
-await waitlist.migrate()
+const ADMIN_SECRET = process.env.ADMIN_SECRET || 'dev-secret'
 
-// Join the waitlist
-const result = await waitlist.join('user@example.com', 'REFCODE')
+function requireAuth(auth: string | null): boolean {
+  if (!auth) return false
+  const [scheme, token] = auth.split(' ')
+  return scheme?.toLowerCase() === 'bearer' && token === ADMIN_SECRET
+}
 
-// Get count
-const count = await waitlist.count()
+export async function GET(request: NextRequest) {
+  const auth = request.headers.get('authorization')
+  if (!requireAuth(auth)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  
+  const adapter = await getAdapter()
+  const url = new URL(request.url)
+  const limit = Number(url.searchParams.get('limit')) || 50
+  const page = Number(url.searchParams.get('page')) || 1
+  
+  const [signups, total] = await Promise.all([
+    adapter.getAll({ limit, offset: (page - 1) * limit }),
+    adapter.getCount()
+  ])
+  
+  return NextResponse.json({ signups, total, page, limit })
+}
+
+export async function POST(request: NextRequest) {
+  const auth = request.headers.get('authorization')
+  if (!requireAuth(auth)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  
+  const adapter = await getAdapter()
+  const url = new URL(request.url)
+  const ids = url.searchParams.get('ids')?.split(',') || []
+  
+  const updated = await adapter.markInvited(ids)
+  return NextResponse.json({ updated })
+}
+```
+
+```tsx
+// app/admin/page.tsx
+'use client'
+import { WaitlistAdmin } from '@cyguin/waitlist/react'
+
+export default function Admin() {
+  return (
+    <WaitlistAdmin
+      endpoint="/api/admin"
+      adminSecret={process.env.ADMIN_SECRET || 'dev-secret'}
+    />
+  )
+}
 ```
 
 ---
@@ -108,8 +207,8 @@ Creates a waitlist instance with your database.
 | `migrate()` | `Promise<void>` | Run database migrations |
 | `join(email, ref?)` | `Promise<JoinResponse>` | Add signup, returns `{ id, email, ownCode, position, alreadyExists }` |
 | `count()` | `Promise<number>` | Total signup count |
-| `list()` | `Promise<Signup[]>` | All signups |
-| `invite(ids)` | `Promise<void>` | Mark as invited |
+| `list()` | `Promise<Signup[]>` | All signups (paginated via `getAll({ limit, offset })`) |
+| `invite(ids)` | `Promise<void>` | Mark signups as invited |
 
 ### Join Response
 
@@ -123,12 +222,48 @@ Creates a waitlist instance with your database.
 }
 ```
 
+### Signup Object
+
+```ts
+{
+  id: string,
+  email: string,
+  referralCode: string | null,  // code used when they joined
+  ownCode: string,              // their unique referral code
+  position: number,             // queue position
+  referralCount: number,        // how many people they referred
+  invitedAt: string | null,     // ISO timestamp when invited
+  createdAt: string             // ISO timestamp when joined
+}
+```
+
+---
+
+## exports
+
+### Core
+
+```ts
+import { createWaitlist, SQLiteAdapter, PostgresAdapter } from '@cyguin/waitlist'
+```
+
+### React Components
+
+```ts
+import { WaitlistForm, SocialProof, WaitlistAdmin, useWaitlistCount } from '@cyguin/waitlist/react'
+```
+
+### Hooks
+
+- `useWaitlistCount(endpoint, pollInterval?)` — polls for waitlist count
+
 ---
 
 ## requirements
 
 - Next.js 14+ (App Router)
 - Node 18+
+- React 18+
 - `better-sqlite3` if using the SQLite adapter
 - `postgres` if using the Postgres adapter
 

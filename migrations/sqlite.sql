@@ -9,4 +9,5 @@ CREATE TABLE IF NOT EXISTS waitlist_signups (
 
 CREATE INDEX IF NOT EXISTS idx_waitlist_created ON waitlist_signups (created_at);
 CREATE INDEX IF NOT EXISTS idx_waitlist_own_code ON waitlist_signups (own_code);
+CREATE INDEX IF NOT EXISTS idx_waitlist_referral_code ON waitlist_signups (referral_code);
 PRAGMA journal_mode=WAL;

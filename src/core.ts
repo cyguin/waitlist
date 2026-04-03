@@ -54,7 +54,7 @@ export function createWaitlist(config: WaitlistConfig) {
     },
 
     async invite(ids: string[]): Promise<void> {
-      return adapter.markInvited(ids)
+      await adapter.markInvited(ids)
     }
   }
 }

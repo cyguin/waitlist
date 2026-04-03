@@ -4,6 +4,7 @@ export interface Signup {
   referralCode: string | null
   ownCode: string
   position: number
+  referralCount: number
   invitedAt: string | null
   createdAt: string
 }
@@ -12,8 +13,12 @@ export interface WaitlistAdapter {
   migrate(): Promise<void>
   insertSignup(email: string, referralCode?: string): Promise<Signup>
   getCount(): Promise<number>
-  getAll(): Promise<Signup[]>
-  markInvited(ids: string[]): Promise<void>
+  getAll(options?: { limit?: number; offset?: number }): Promise<Signup[]>
+  markInvited(ids: string[]): Promise<number>
+}
+
+export interface InviteResult {
+  updated: number
 }
 
 export interface JoinResponse {

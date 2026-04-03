@@ -9,6 +9,7 @@ interface WaitlistRow {
   referral_code: string | null
   own_code: string
   position: number
+  referral_count: number
   invited_at: Date | null
   created_at: Date
 }
@@ -43,13 +44,20 @@ export class PostgresAdapter implements WaitlistAdapter {
     return Number(count) + 1
   }
 
-  private rowToSignup(row: WaitlistRow, position: number): Signup {
+  private async calculateReferralCount(ownCode: string): Promise<number> {
+    const [{ count }] = await this.sql<[{ count: bigint }]>`SELECT COUNT(*) as count FROM ${this.sql(this.tableName)} WHERE referral_code = ${ownCode}`
+    return Number(count)
+  }
+
+  private async rowToSignup(row: WaitlistRow, position: number): Promise<Signup> {
+    const referralCount = await this.calculateReferralCount(row.own_code)
     return {
       id: row.id,
       email: row.email,
       referralCode: row.referral_code,
       ownCode: row.own_code,
       position,
+      referralCount,
       invitedAt: row.invited_at?.toISOString() || null,
       createdAt: row.created_at.toISOString()
     }
@@ -86,16 +94,19 @@ export class PostgresAdapter implements WaitlistAdapter {
     return Number(count)
   }
 
-  async getAll(): Promise<Signup[]> {
-    const rows = await this.sql<WaitlistRow[]>`SELECT * FROM ${this.sql(this.tableName)} ORDER BY created_at ASC`
+  async getAll(options?: { limit?: number; offset?: number }): Promise<Signup[]> {
+    const limit = options?.limit ?? 100
+    const offset = options?.offset ?? 0
+    const rows = await this.sql<WaitlistRow[]>`SELECT * FROM ${this.sql(this.tableName)} ORDER BY created_at ASC LIMIT ${limit} OFFSET ${offset}`
     return Promise.all(rows.map(async (row: WaitlistRow) => {
       const position = await this.calculatePosition()
       return this.rowToSignup(row, position)
     }))
   }
 
-  async markInvited(ids: string[]): Promise<void> {
-    if (ids.length === 0) return
-    await this.sql`UPDATE ${this.sql(this.tableName)} SET invited_at = NOW() WHERE id IN (${this.sql(ids)})`
+  async markInvited(ids: string[]): Promise<number> {
+    if (ids.length === 0) return 0
+    const [{ count }] = await this.sql<[{ count: string }]>`UPDATE ${this.sql(this.tableName)} SET invited_at = NOW() WHERE id IN (${ids}) RETURNING COUNT(*) as count`
+    return Number(count)
   }
 }
