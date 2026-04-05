@@ -1,3 +1,2 @@
-export { WaitlistAdapter, Signup, JoinResponse, CountResponse } from './interface'
-export { SQLiteAdapter } from './sqlite'
-export { PostgresAdapter } from './postgres'
+export { createSQLiteAdapter } from "./sqlite.js";
+export { createPostgresAdapter } from "./postgres.js";

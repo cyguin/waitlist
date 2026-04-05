@@ -1,9 +1,11 @@
 node_modules/
 dist/
-*.db
-*.db-wal
-*.db-shm
+.turbo/
+.next/
+out/
+*.tsbuildinfo
 .env
-.env.local
+.env.*
+!.env.example
 .DS_Store
 *.log

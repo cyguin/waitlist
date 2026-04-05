@@ -1,6 +1,14 @@
-export { createWaitlist, Signup, JoinResponse } from './core'
-export { WaitlistAdapter, CountResponse } from './adapters/interface'
-export { SQLiteAdapter } from './adapters/sqlite'
-export { PostgresAdapter } from './adapters/postgres'
-export { handleJoin, JoinRequest } from './api/join'
-export { handleCount } from './api/count'
+export type {
+  WaitlistEntry,
+  WaitlistAdapter,
+  JoinResponse,
+  PositionResponse,
+  WaitlistConfig,
+} from "./types.js";
+
+export { createSQLiteAdapter, createPostgresAdapter } from "./adapters/index.js";
+
+export { configureWaitlist } from "./app/api/waitlist/[...cyguin]/route.js";
+
+export { WaitlistForm } from "./components/index.js";
+export type { WaitlistFormProps } from "./components/WaitlistForm.js";

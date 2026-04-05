@@ -1,11 +1,17 @@
-import { defineConfig } from 'tsup'
+import { defineConfig } from 'tsup';
 
 export default defineConfig({
   entry: {
     index: 'src/index.ts',
-    react: 'src/react.ts',
+    next: 'src/handlers/route.ts',
+    react: 'src/components/index.ts',
+    'adapters/sqlite': 'src/adapters/sqlite.ts',
+    'adapters/postgres': 'src/adapters/postgres.ts',
   },
-  format: ['cjs', 'esm'],
+  format: ['esm', 'cjs'],
   dts: true,
-  external: ['react', 'react-dom'],
-})
+  splitting: false,
+  sourcemap: false,
+  clean: true,
+  external: ['postgres', 'better-sqlite3'],
+});

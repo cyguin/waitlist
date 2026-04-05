@@ -1,300 +1,162 @@
 # @cyguin/waitlist
 
-> drop-in pre-launch waitlist for Next.js. your DB, your list, no middleman.
+Drop-in email waitlist with position tracking and optional referral loop for Next.js apps.
 
-self-hosted waitlist with referral tracking. ships as an npm package that mounts into your existing app in about ten minutes.
-
----
-
-## the deal
-
-> Most waitlist tools want to own your email list. The ones that don't still require
-> a separate service, a subdomain, and a monthly bill before you've validated anything.
-> This one drops into your Next.js API routes and writes to SQLite or Postgres —
-> whatever you already have. Pull it, mount it, ship it.
-
----
-
-## install
+## Install
 
 ```bash
 npm install @cyguin/waitlist
 ```
 
-if you're using the SQLite adapter:
+## Quick start
 
-```bash
-npm install better-sqlite3
-```
-
----
-
-## usage
-
-### Quick Start
-
-```bash
-npm install @cyguin/waitlist better-sqlite3
-```
-
-### 1. Init the Waitlist
+### 1. Configure the adapter
 
 ```ts
 // lib/waitlist.ts
-import { createWaitlist } from '@cyguin/waitlist'
-import Database from 'better-sqlite3'
+import { createSQLiteAdapter } from '@cyguin/waitlist/adapters/sqlite';
 
-const db = new Database('waitlist.db')
-export const waitlist = createWaitlist({
-  adapter: 'sqlite',
-  db,
-})
+export const waitlistAdapter = createSQLiteAdapter();
 ```
 
-### 2. Mount API Routes
+### 2. Add the API route
 
 ```ts
-// app/api/join/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import { getAdapter } from '@/lib/db'
+// app/api/waitlist/[...cyguin]/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { createWaitlistHandler } from '@cyguin/waitlist/next';
+import { waitlistAdapter } from '@/lib/waitlist';
 
-export async function POST(request: NextRequest) {
-  const adapter = await getAdapter()
-  await adapter.migrate()
-  
-  const { email, referralCode } = await request.json()
-  
-  if (!email || !email.includes('@')) {
-    return NextResponse.json({ error: 'Invalid email' }, { status: 422 })
-  }
-  
-  const signup = await adapter.insertSignup(email, referralCode)
-  return NextResponse.json({
-    id: signup.id,
-    email: signup.email,
-    ownCode: signup.ownCode,
-    position: signup.position,
-  }, { status: 201 })
+const handler = createWaitlistHandler({ adapter: waitlistAdapter });
+
+export async function GET(req: NextRequest) {
+  return handler(req);
+}
+
+export async function POST(req: NextRequest) {
+  return handler(req);
 }
 ```
 
-```ts
-// app/api/count/route.ts
-import { NextResponse } from 'next/server'
-import { getAdapter } from '@/lib/db'
-
-export async function GET() {
-  const adapter = await getAdapter()
-  await adapter.migrate()
-  const count = await adapter.getCount()
-  return NextResponse.json({ count })
-}
-```
-
-### 3. Add React Components
+### 3. Drop in the component
 
 ```tsx
 // app/page.tsx
-'use client'
-import { WaitlistForm } from '@cyguin/waitlist/react'
-import { SocialProof } from '@cyguin/waitlist/react'
+import { WaitlistForm } from '@cyguin/waitlist';
 
 export default function Home() {
   return (
-    <div>
+    <main>
+      <h1>Join the waitlist</h1>
       <WaitlistForm
-        action="/api/join"
-        countEndpoint="/api/count"
-        showReferral  // show referral link after signup
+        placeholder="Enter your email"
+        buttonText="Join waitlist"
       />
-      
-      <SocialProof endpoint="/api/count" />
-    </div>
-  )
+    </main>
+  );
 }
 ```
 
-### 4. Admin Panel (Optional)
+## API
 
-Set an admin secret in your environment:
+### POST `/api/waitlist`
 
-```bash
-# .env.local
-ADMIN_SECRET=your-secret-here
-```
+Join the waitlist.
 
-```ts
-// app/api/admin/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import { getAdapter } from '@/lib/db'
-
-const ADMIN_SECRET = process.env.ADMIN_SECRET || 'dev-secret'
-
-function requireAuth(auth: string | null): boolean {
-  if (!auth) return false
-  const [scheme, token] = auth.split(' ')
-  return scheme?.toLowerCase() === 'bearer' && token === ADMIN_SECRET
-}
-
-export async function GET(request: NextRequest) {
-  const auth = request.headers.get('authorization')
-  if (!requireAuth(auth)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-  
-  const adapter = await getAdapter()
-  const url = new URL(request.url)
-  const limit = Number(url.searchParams.get('limit')) || 50
-  const page = Number(url.searchParams.get('page')) || 1
-  
-  const [signups, total] = await Promise.all([
-    adapter.getAll({ limit, offset: (page - 1) * limit }),
-    adapter.getCount()
-  ])
-  
-  return NextResponse.json({ signups, total, page, limit })
-}
-
-export async function POST(request: NextRequest) {
-  const auth = request.headers.get('authorization')
-  if (!requireAuth(auth)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-  
-  const adapter = await getAdapter()
-  const url = new URL(request.url)
-  const ids = url.searchParams.get('ids')?.split(',') || []
-  
-  const updated = await adapter.markInvited(ids)
-  return NextResponse.json({ updated })
+**Request:**
+```json
+{
+  "email": "user@example.com",
+  "referred_by": "TOKEN"  // optional
 }
 ```
+
+**Response `201`:**
+```json
+{
+  "id": "abc123",
+  "email": "user@example.com",
+  "position": 42,
+  "referral_token": "abc123"
+}
+```
+
+**Response `409`** — email already registered:
+```json
+{ "error": "already_registered" }
+```
+
+### GET `/api/waitlist?email=xxx`
+
+Get your position on the waitlist.
+
+**Response `200`:**
+```json
+{
+  "id": "abc123",
+  "email": "user@example.com",
+  "position": 42,
+  "referral_token": "abc123",
+  "joined_at": 1712000000000
+}
+```
+
+**Response `404`** — not found:
+```json
+{ "error": "not_found" }
+```
+
+## Referral system
+
+When a user joins via `?ref=TOKEN`, their entry records who referred them. Position is never adjusted based on referral count — referrals are informational only.
+
+1. On `POST`, a `referral_token` (the entry's `id`) is returned.
+2. Share links like `https://yoursite.com/?ref=TOKEN`.
+3. New joins with `?ref=TOKEN` store the referrer's id.
+
+## `<WaitlistForm />` Props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `className` | `string` | `''` | CSS class for the form container |
+| `placeholder` | `string` | `'Enter your email'` | Input placeholder text |
+| `buttonText` | `string` | `'Join waitlist'` | Button label |
+| `redirectTo` | `string` | — | If provided, redirects here after success with `?ref=TOKEN` |
+| `onSuccess` | `(data: JoinResponse) => void` | — | Callback on successful join |
+| `onError` | `(error: string) => void` | — | Callback on error |
+
+## Theming
+
+All styling uses `--cyguin-*` CSS custom properties. Default tokens:
+
+```css
+--cyguin-bg: #ffffff
+--cyguin-bg-subtle: #f5f5f5
+--cyguin-border: #e5e5e5
+--cyguin-border-focus: #f5a800
+--cyguin-fg: #0a0a0a
+--cyguin-fg-muted: #888888
+--cyguin-accent: #f5a800
+--cyguin-accent-dark: #c47f00
+--cyguin-accent-fg: #0a0a0a
+--cyguin-radius: 6px
+--cyguin-shadow: 0 1px 4px rgba(0,0,0,0.08)
+```
+
+Apply a dark theme by setting `data-theme="dark"` on the root element:
 
 ```tsx
-// app/admin/page.tsx
-'use client'
-import { WaitlistAdmin } from '@cyguin/waitlist/react'
-
-export default function Admin() {
-  return (
-    <WaitlistAdmin
-      endpoint="/api/admin"
-      adminSecret={process.env.ADMIN_SECRET || 'dev-secret'}
-    />
-  )
-}
+<div data-theme="dark">
+  <WaitlistForm />
+</div>
 ```
 
----
+## Exports
 
-## api
-
-### `createWaitlist(options)`
-
-Creates a waitlist instance with your database.
-
-| Option | Type | Required | Description |
-|--------|------|----------|-------------|
-| `adapter` | `'sqlite' \| 'postgres'` | Yes | Database adapter |
-| `db` | `Database \| Sql` | Yes | Your database connection |
-| `tableName` | `string` | No | Custom table name (default: `waitlist_signups`) |
-| `rateLimit` | `boolean` | No | Rate limiting (stub, no-op) |
-
-### Methods
-
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `migrate()` | `Promise<void>` | Run database migrations |
-| `join(email, ref?)` | `Promise<JoinResponse>` | Add signup, returns `{ id, email, ownCode, position, alreadyExists }` |
-| `count()` | `Promise<number>` | Total signup count |
-| `list()` | `Promise<Signup[]>` | All signups (paginated via `getAll({ limit, offset })`) |
-| `invite(ids)` | `Promise<void>` | Mark signups as invited |
-
-### Join Response
-
-```ts
-{
-  id: string,
-  email: string,
-  ownCode: string,      // shareable referral code
-  position: number,     // queue position
-  alreadyExists: boolean // true if email was duplicate
-}
-```
-
-### Signup Object
-
-```ts
-{
-  id: string,
-  email: string,
-  referralCode: string | null,  // code used when they joined
-  ownCode: string,              // their unique referral code
-  position: number,             // queue position
-  referralCount: number,        // how many people they referred
-  invitedAt: string | null,     // ISO timestamp when invited
-  createdAt: string             // ISO timestamp when joined
-}
-```
-
----
-
-## exports
-
-### Core
-
-```ts
-import { createWaitlist, SQLiteAdapter, PostgresAdapter } from '@cyguin/waitlist'
-```
-
-### React Components
-
-```ts
-import { WaitlistForm, SocialProof, WaitlistAdmin, useWaitlistCount } from '@cyguin/waitlist/react'
-```
-
-### Hooks
-
-- `useWaitlistCount(endpoint, pollInterval?)` — polls for waitlist count
-
----
-
-## requirements
-
-- Next.js 14+ (App Router)
-- Node 18+
-- React 18+
-- `better-sqlite3` if using the SQLite adapter
-- `postgres` if using the Postgres adapter
-
----
-
-## adapters
-
-**sqlite** — recommended for single-server and local dev. runs WAL mode by default. migrations run automatically on first use. no setup beyond a writable path.
-
-**postgres** — for multi-instance or cloud deployments. requires an existing Postgres connection. `CREATE TABLE IF NOT EXISTS` runs on first boot.
-
-schema ships as plain SQL if you'd rather run migrations yourself: [`migrations/`](./migrations/)
-
----
-
-## development
-
-```bash
-npm install
-npm test          # vitest
-npm run build     # tsup
-```
-
----
-
-## status
-
-`v0.x` — working but not stable. breaking changes land without ceremony. pin your version.
-
----
-
-## license
-
-MIT. see [LICENSE](./LICENSE).
+| Export | Description |
+|---|---|
+| `@cyguin/waitlist` | Main package entry — types, adapters, handler |
+| `@cyguin/waitlist/next` | Next.js route handler for API route |
+| `@cyguin/waitlist/react` | `WaitlistForm` component |
+| `@cyguin/waitlist/adapters/sqlite` | SQLite adapter (better-sqlite3) |
+| `@cyguin/waitlist/adapters/postgres` | Postgres adapter (postgres.js) |
