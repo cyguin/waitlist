@@ -1,3 +1,5 @@
+import type { JoinResponse } from '../types'
+
 export interface SignupResult {
   id: string
   email: string
@@ -7,16 +9,13 @@ export interface SignupResult {
 }
 
 export interface WaitlistFormProps {
-  action: string
-  countEndpoint: string
-  showReferral?: boolean
-  confirmMessage?: string
-  pollInterval?: number
   className?: string
-  inputClassName?: string
-  buttonClassName?: string
-  buttonLabel?: string
-  renderConfirm?: (signup: SignupResult) => React.ReactNode
+  onSuccess?: (data: JoinResponse) => void
+  onError?: (error: string) => void
+  placeholder?: string
+  buttonText?: string
+  redirectTo?: string
+  theme?: 'light' | 'dark'
 }
 
 export interface SocialProofProps {
@@ -35,6 +34,7 @@ export interface UseWaitlistCountResult {
 export interface WaitlistAdminProps {
   endpoint: string
   adminSecret: string
+  theme?: 'light' | 'dark'
   pageSize?: number
   className?: string
 }
