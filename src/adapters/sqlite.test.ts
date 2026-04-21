@@ -1,120 +1,44 @@
-import { SQLiteAdapter } from './sqlite'
-import Database from 'better-sqlite3'
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, expect, it } from 'vitest';
+import { createSQLiteAdapter } from './sqlite';
 
-describe('SQLiteAdapter', () => {
-  let adapter: SQLiteAdapter
-  let db: Database
+describe('createSQLiteAdapter', () => {
+  it('stores and finds waitlist entries by email and id', async () => {
+    const adapter = createSQLiteAdapter(':memory:');
 
-  beforeEach(() => {
-    db = new Database(':memory:')
-    adapter = new SQLiteAdapter(db, 'test_waitlist')
-  })
+    await adapter.create({
+      id: 'entry_1',
+      email: 'found@example.com',
+      joined_at: 100,
+    });
 
-  afterEach(() => {
-    db.close()
-  })
+    await expect(adapter.findByEmail('found@example.com')).resolves.toMatchObject({
+      id: 'entry_1',
+      email: 'found@example.com',
+      joined_at: 100,
+    });
+    await expect(adapter.findById('entry_1')).resolves.toMatchObject({
+      email: 'found@example.com',
+    });
+  });
 
-  describe('migrate()', () => {
-    it('creates table', async () => {
-      await adapter.migrate()
-      
-      const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='test_waitlist'").get()
-      expect(tables).toBeDefined()
-    })
+  it('calculates positions by join order', async () => {
+    const adapter = createSQLiteAdapter(':memory:');
 
-    it('creates indexes', async () => {
-      await adapter.migrate()
-      
-      const indexes = db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='test_waitlist'").all()
-      expect(indexes.length).toBeGreaterThanOrEqual(2)
-    })
-  })
+    await adapter.create({ id: 'entry_1', email: 'first@example.com', joined_at: 100 });
+    await adapter.create({ id: 'entry_2', email: 'second@example.com', joined_at: 200 });
 
-  describe('insertSignup()', () => {
-    beforeEach(async () => {
-      await adapter.migrate()
-    })
+    await expect(adapter.getPosition('first@example.com')).resolves.toBe(1);
+    await expect(adapter.getPosition('second@example.com')).resolves.toBe(2);
+  });
 
-    it('inserts new signup with position 1', async () => {
-      const result = await adapter.insertSignup('test@example.com')
-      
-      expect(result.email).toBe('test@example.com')
-      expect(result.id).toBeDefined()
-      expect(result.ownCode).toBeDefined()
-      expect(result.ownCode.length).toBe(8)
-      expect(result.position).toBe(1)
-      expect(result.referralCode).toBeNull()
-    })
+  it('creates schema for each in-memory adapter instance', async () => {
+    const first = createSQLiteAdapter(':memory:');
+    const second = createSQLiteAdapter(':memory:');
 
-    it('returns existing record on duplicate email', async () => {
-      const first = await adapter.insertSignup('test@example.com')
-      const second = await adapter.insertSignup('test@example.com')
-      
-      expect(first.id).toBe(second.id)
-      expect(first.email).toBe(second.email)
-      expect(first.ownCode).toBe(second.ownCode)
-    })
+    await first.create({ id: 'entry_1', email: 'first@example.com', joined_at: 100 });
+    await second.create({ id: 'entry_2', email: 'second@example.com', joined_at: 100 });
 
-    it('handles referral code', async () => {
-      const referrer = await adapter.insertSignup('referrer@example.com')
-      const referred = await adapter.insertSignup('referred@example.com', referrer.ownCode)
-      
-      expect(referred.referralCode).toBe(referrer.ownCode)
-    })
-
-    it('increments position for subsequent signups', async () => {
-      await adapter.insertSignup('first@example.com')
-      const second = await adapter.insertSignup('second@example.com')
-      
-      expect(second.position).toBe(2)
-    })
-  })
-
-  describe('getCount()', () => {
-    beforeEach(async () => {
-      await adapter.migrate()
-    })
-
-    it('returns 0 for empty table', async () => {
-      const count = await adapter.getCount()
-      expect(count).toBe(0)
-    })
-
-    it('returns correct count after insertions', async () => {
-      await adapter.insertSignup('test1@example.com')
-      await adapter.insertSignup('test2@example.com')
-      
-      const count = await adapter.getCount()
-      expect(count).toBe(2)
-    })
-
-    it('does not increment on duplicate', async () => {
-      await adapter.insertSignup('test@example.com')
-      await adapter.insertSignup('test@example.com')
-      
-      const count = await adapter.getCount()
-      expect(count).toBe(1)
-    })
-  })
-
-  describe('markInvited()', () => {
-    beforeEach(async () => {
-      await adapter.migrate()
-    })
-
-    it('marks specified IDs as invited', async () => {
-      const signup1 = await adapter.insertSignup('test1@example.com')
-      await adapter.insertSignup('test2@example.com')
-      
-      await adapter.markInvited([signup1.id])
-      
-      const all = await adapter.getAll()
-      const invited = all.find(s => s.id === signup1.id)
-      const notInvited = all.find(s => s.email === 'test2@example.com')
-      
-      expect(invited?.invitedAt).not.toBeNull()
-      expect(notInvited?.invitedAt).toBeNull()
-    })
-  })
-})
+    await expect(first.list()).resolves.toHaveLength(1);
+    await expect(second.list()).resolves.toHaveLength(1);
+  });
+});

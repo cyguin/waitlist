@@ -1,15 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdapter } from '@/lib/db'
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET || 'dev-secret-123'
+const ADMIN_SECRET = process.env.ADMIN_SECRET
 
 function requireAuth(authHeader: string | null): boolean {
+  if (!ADMIN_SECRET) return false
   if (!authHeader) return false
   const [scheme, token] = authHeader.split(' ')
   return scheme?.toLowerCase() === 'bearer' && token === ADMIN_SECRET
 }
 
+function requireConfiguredAdminSecret(): NextResponse | null {
+  if (!ADMIN_SECRET) {
+    return NextResponse.json({ error: 'ADMIN_SECRET is not configured' }, { status: 500 })
+  }
+  return null
+}
+
 export async function GET(request: NextRequest) {
+  const configError = requireConfiguredAdminSecret()
+  if (configError) return configError
+
   const authHeader = request.headers.get('authorization')
   
   if (!requireAuth(authHeader)) {
@@ -48,11 +59,15 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ signups, total, page, limit })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    console.error('Waitlist admin GET error:', err)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
+  const configError = requireConfiguredAdminSecret()
+  if (configError) return configError
+
   const authHeader = request.headers.get('authorization')
   
   if (!requireAuth(authHeader)) {
@@ -75,6 +90,7 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ updated })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    console.error('Waitlist admin POST error:', err)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

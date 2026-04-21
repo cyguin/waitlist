@@ -2,10 +2,7 @@ import Database from "better-sqlite3";
 import { nanoid } from "nanoid";
 import type { WaitlistAdapter, WaitlistEntry } from "../types.js";
 
-let schemaApplied = false;
-
 function applySchema(db: Database.Database) {
-  if (schemaApplied) return;
   db.exec(`
     CREATE TABLE IF NOT EXISTS waitlist_entries (
       id          TEXT PRIMARY KEY,
@@ -16,7 +13,6 @@ function applySchema(db: Database.Database) {
     );
   `);
   db.pragma("journal_mode = WAL");
-  schemaApplied = true;
 }
 
 export function createSQLiteAdapter(dbPath?: string): WaitlistAdapter {

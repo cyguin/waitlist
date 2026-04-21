@@ -9,7 +9,7 @@ export default function Admin() {
         <h1 className="text-3xl font-bold mb-6">Waitlist Admin</h1>
         <WaitlistAdmin
           endpoint="/api/admin"
-          adminSecret={process.env.NEXT_PUBLIC_ADMIN_SECRET || 'dev-secret-123'}
+          adminSecret={process.env.NEXT_PUBLIC_ADMIN_SECRET ?? ''}
         />
       </div>
     </div>

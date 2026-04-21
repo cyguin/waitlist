@@ -17,96 +17,65 @@ describe('WaitlistForm', () => {
       json: async () => ({
         id: '1',
         email: 'test@example.com',
-        ownCode: 'ABC123',
+        referral_token: 'ABC123',
         position: 1,
-        alreadyExists: false
       })
     } as Response)
 
-    render(
-      <WaitlistForm
-        action="/api/join"
-        countEndpoint="/api/count"
-      />
-    )
+    render(<WaitlistForm />)
 
-    const input = screen.getByPlaceholderText('your@email.com')
+    const input = screen.getByLabelText('Email address')
     fireEvent.change(input, { target: { value: 'test@example.com' } })
 
     const button = screen.getByRole('button')
     fireEvent.click(button)
 
     await waitFor(() => {
-      expect(screen.getByText("you're on the list")).toBeTruthy()
+      expect(screen.getByText("You're #1 on the list!")).toBeTruthy()
     })
+    expect(fetch).toHaveBeenCalledWith('/api/waitlist', expect.objectContaining({ method: 'POST' }))
   })
 
   it('shows error state on 422 response', async () => {
     vi.mocked(fetch).mockImplementation(() => 
-      Promise.resolve(new Response(JSON.stringify({ error: 'invalid email' }), { status: 422 }))
+      Promise.resolve(new Response(JSON.stringify({ error: 'Invalid email address.' }), { status: 422 }))
     )
 
-    render(
-      <WaitlistForm
-        action="/api/join"
-        countEndpoint="/api/count"
-      />
-    )
+    render(<WaitlistForm />)
 
-    const input = screen.getByPlaceholderText('your@email.com')
+    const input = screen.getByLabelText('Email address')
     fireEvent.change(input, { target: { value: 'test@invalid' } })
 
     const button = screen.getByRole('button')
-    fireEvent.submit(button)
+    fireEvent.click(button)
 
     await waitFor(() => {
-      expect(screen.getByText('invalid email address')).toBeTruthy()
+      expect(screen.getByText('Invalid email address.')).toBeTruthy()
     })
   })
 
-  it('shows referral link when showReferral is true', async () => {
-    let callCount = 0
-    vi.mocked(fetch).mockImplementation(() => {
-      callCount++
-      if (callCount === 1) {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({ count: 10 })
-        }) as Response
-      }
-      return Promise.resolve({
-        ok: true,
-        status: 201,
-        json: async () => ({
-          id: '1',
-          email: 'test@example.com',
-          ownCode: 'ABC123',
-          position: 11,
-          alreadyExists: false
-        })
-      }) as Response
-    })
+  it('shows referral link after a successful signup', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({
+        id: '1',
+        email: 'test@example.com',
+        referral_token: 'ABC123',
+        position: 11,
+      })
+    } as Response)
 
-    render(
-      <WaitlistForm
-        action="/api/join"
-        countEndpoint="/api/count"
-        showReferral
-      />
-    )
+    render(<WaitlistForm />)
 
-    await waitFor(() => {
-      expect(screen.getByText('10 people are already waiting.')).toBeTruthy()
-    })
-
-    const input = screen.getByPlaceholderText('your@email.com')
+    const input = screen.getByLabelText('Email address')
     fireEvent.change(input, { target: { value: 'test@example.com' } })
 
     const button = screen.getByRole('button')
     fireEvent.click(button)
 
     await waitFor(() => {
-      expect(screen.getByText(/ABC123/)).toBeTruthy()
+      expect(screen.getByLabelText('Your referral link')).toHaveProperty('value', 'http://localhost:3000?ref=ABC123')
     })
   })
 })
