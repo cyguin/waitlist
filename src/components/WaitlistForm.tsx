@@ -10,6 +10,7 @@ export interface WaitlistFormProps {
   placeholder?: string;
   buttonText?: string;
   redirectTo?: string;
+  theme?: 'light' | 'dark';
 }
 
 type FormState = 'idle' | 'loading' | 'success' | 'error';
@@ -21,6 +22,7 @@ export function WaitlistForm({
   placeholder = 'Enter your email',
   buttonText = 'Join waitlist',
   redirectTo,
+  theme = 'dark',
 }: WaitlistFormProps) {
   const [email, setEmail] = useState('');
   const [state, setState] = useState<FormState>('idle');
@@ -228,7 +230,7 @@ export function WaitlistForm({
         }
       `}</style>
 
-      <div className={`cyguin-waitlist-form ${className}`} data-theme="light">
+      <div className={`cyguin-waitlist-form ${className}`} data-theme={theme}>
         {state !== 'success' ? (
           <form onSubmit={handleSubmit}>
             <div className="waitlist-form-row">

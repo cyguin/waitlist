@@ -1,6 +1,6 @@
 {
   "name": "@cyguin/waitlist",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Email waitlist with position tracking for Next.js",
   "license": "MIT",
   "keywords": [
