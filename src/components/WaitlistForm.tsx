@@ -88,25 +88,25 @@ export function WaitlistForm({
       <style>{`
         .cyguin-waitlist-form {
           --cyguin-bg: #ffffff;
-          --cyguin-bg-subtle: #f5f5f5;
+          --cyguin-bg-subtle: #f1f3f6;
           --cyguin-border: #e5e5e5;
-          --cyguin-border-focus: #f5a800;
-          --cyguin-fg: #0a0a0a;
-          --cyguin-fg-muted: #888888;
-          --cyguin-accent: #f5a800;
-          --cyguin-accent-dark: #c47f00;
-          --cyguin-accent-fg: #0a0a0a;
+          --cyguin-border-focus: #ffd21f;
+          --cyguin-fg: #0a0d17;
+          --cyguin-fg-muted: #858b98;
+          --cyguin-accent: #ffd21f;
+          --cyguin-accent-dark: #e0a900;
+          --cyguin-accent-fg: #0a0d17;
           --cyguin-radius: 6px;
           --cyguin-shadow: 0 1px 4px rgba(0,0,0,0.08);
           font-family: system-ui, -apple-system, sans-serif;
           width: 100%;
         }
         .cyguin-waitlist-form[data-theme="dark"] {
-          --cyguin-bg: #0a0a0a;
-          --cyguin-bg-subtle: #1a1a1a;
-          --cyguin-border: #2a2a2a;
-          --cyguin-fg: #f5f5f5;
-          --cyguin-fg-muted: #888888;
+          --cyguin-bg: #0a0d17;
+          --cyguin-bg-subtle: #101521;
+          --cyguin-border: #252b3a;
+          --cyguin-fg: #f1f3f6;
+          --cyguin-fg-muted: #858b98;
         }
         .cyguin-waitlist-form[data-theme="dark"] .waitlist-input {
           background-color: var(--cyguin-bg-subtle);
@@ -139,7 +139,7 @@ export function WaitlistForm({
         }
         .cyguin-waitlist-form .waitlist-input:focus {
           border-color: var(--cyguin-border-focus);
-          box-shadow: 0 0 0 3px rgba(245, 168, 0, 0.15);
+          box-shadow: 0 0 0 3px rgba(255, 210, 31, 0.18);
         }
         .cyguin-waitlist-form .waitlist-button {
           padding: 10px 20px;

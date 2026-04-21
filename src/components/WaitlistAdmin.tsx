@@ -3,6 +3,7 @@ import React, { useState, useCallback, useEffect } from 'react'
 export interface WaitlistAdminProps {
   endpoint: string
   adminSecret: string
+  theme?: 'light' | 'dark'
   pageSize?: number
   className?: string
 }
@@ -84,9 +85,29 @@ async function exportCsv(endpoint: string, adminSecret: string): Promise<void> {
 export function WaitlistAdmin({
   endpoint,
   adminSecret,
+  theme = 'dark',
   pageSize = 25,
   className,
 }: WaitlistAdminProps) {
+  const colors = theme === 'dark'
+    ? {
+        bg: '#0a0d17',
+        bgSubtle: '#101521',
+        border: '#252b3a',
+        fg: '#f1f3f6',
+        muted: '#858b98',
+        accent: '#ffd21f',
+        accentFg: '#0a0d17',
+      }
+    : {
+        bg: '#ffffff',
+        bgSubtle: '#f1f3f6',
+        border: '#e5e5e5',
+        fg: '#0a0d17',
+        muted: '#858b98',
+        accent: '#ffd21f',
+        accentFg: '#0a0d17',
+      }
   const [signups, setSignups] = useState<Signup[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -162,15 +183,15 @@ export function WaitlistAdmin({
   }
 
   return (
-    <div className={className}>
+    <div className={className} style={{ color: colors.fg }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
         <h3 style={{ margin: 0 }}>Waitlist ({total.toLocaleString()} total)</h3>
-        <button onClick={handleExportCsv} disabled={loading} style={{ marginLeft: 'auto' }}>
+        <button onClick={handleExportCsv} disabled={loading} style={{ ...buttonStyle(colors), marginLeft: 'auto' }}>
           Export CSV
         </button>
       </div>
 
-      {error && <div style={{ color: 'red', marginBottom: '0.5rem' }}>{error}</div>}
+      {error && <div style={{ color: '#fca5a5', marginBottom: '0.5rem' }}>{error}</div>}
 
       {loading && signups.length === 0 ? (
         <div>Loading...</div>
@@ -179,27 +200,27 @@ export function WaitlistAdmin({
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={thStyle}>
+                <th style={thStyle(colors)}>
                   <input type="checkbox" checked={signups.length > 0 && selected.size === signups.length} onChange={toggleAll} />
                 </th>
-                <th style={thStyle}>#</th>
-                <th style={thStyle}>Email</th>
-                <th style={thStyle}>Referrals</th>
-                <th style={thStyle}>Invited</th>
-                <th style={thStyle}>Joined</th>
+                <th style={thStyle(colors)}>#</th>
+                <th style={thStyle(colors)}>Email</th>
+                <th style={thStyle(colors)}>Referrals</th>
+                <th style={thStyle(colors)}>Invited</th>
+                <th style={thStyle(colors)}>Joined</th>
               </tr>
             </thead>
             <tbody>
               {signups.map((signup) => (
-                <tr key={signup.id} style={{ backgroundColor: signup.invitedAt ? '#f0fdf4' : 'transparent' }}>
-                  <td style={tdStyle}>
+                <tr key={signup.id} style={{ backgroundColor: signup.invitedAt ? 'rgba(255, 210, 31, 0.08)' : 'transparent' }}>
+                  <td style={tdStyle(colors)}>
                     <input type="checkbox" checked={selected.has(signup.id)} onChange={() => toggleOne(signup.id)} />
                   </td>
-                  <td style={tdStyle}>{signup.position}</td>
-                  <td style={tdStyle}>{signup.email}</td>
-                  <td style={tdStyle}>{signup.referralCount}</td>
-                  <td style={tdStyle}>{signup.invitedAt ? '✓' : '—'}</td>
-                  <td style={tdStyle}>{new Date(signup.createdAt).toLocaleDateString()}</td>
+                  <td style={tdStyle(colors)}>{signup.position}</td>
+                  <td style={tdStyle(colors)}>{signup.email}</td>
+                  <td style={tdStyle(colors)}>{signup.referralCount}</td>
+                  <td style={tdStyle(colors)}>{signup.invitedAt ? '✓' : '—'}</td>
+                  <td style={tdStyle(colors)}>{new Date(signup.createdAt).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>
@@ -207,18 +228,18 @@ export function WaitlistAdmin({
 
           {selected.size > 0 && (
             <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem' }}>
-              <button onClick={handleInvite} disabled={inviting}>
+              <button onClick={handleInvite} disabled={inviting} style={buttonStyle(colors)}>
                 {inviting ? 'Inviting...' : `Invite ${selected.size} member${selected.size > 1 ? 's' : ''}`}
               </button>
-              <button onClick={() => setSelected(new Set())}>Clear</button>
+              <button onClick={() => setSelected(new Set())} style={secondaryButtonStyle(colors)}>Clear</button>
             </div>
           )}
 
           {totalPages > 1 && (
             <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <button onClick={() => load(page - 1)} disabled={page <= 1 || loading}>Prev</button>
-              <span>Page {page} of {totalPages}</span>
-              <button onClick={() => load(page + 1)} disabled={page >= totalPages || loading}>Next</button>
+              <button onClick={() => load(page - 1)} disabled={page <= 1 || loading} style={secondaryButtonStyle(colors)}>Prev</button>
+              <span style={{ color: colors.muted }}>Page {page} of {totalPages}</span>
+              <button onClick={() => load(page + 1)} disabled={page >= totalPages || loading} style={secondaryButtonStyle(colors)}>Next</button>
             </div>
           )}
         </>
@@ -227,14 +248,42 @@ export function WaitlistAdmin({
   )
 }
 
-const thStyle: React.CSSProperties = {
+function thStyle(colors: { border: string; muted: string }): React.CSSProperties {
+  return {
   textAlign: 'left',
   padding: '0.5rem',
-  borderBottom: '2px solid #e5e7eb',
+  borderBottom: `2px solid ${colors.border}`,
   fontWeight: 600,
+  color: colors.muted,
+  }
 }
 
-const tdStyle: React.CSSProperties = {
+function tdStyle(colors: { border: string }): React.CSSProperties {
+  return {
   padding: '0.5rem',
-  borderBottom: '1px solid #f3f4f6',
+  borderBottom: `1px solid ${colors.border}`,
+  }
+}
+
+function buttonStyle(colors: { accent: string; accentFg: string; border: string }): React.CSSProperties {
+  return {
+    background: colors.accent,
+    color: colors.accentFg,
+    border: `1px solid ${colors.accent}`,
+    borderRadius: 6,
+    padding: '0.45rem 0.75rem',
+    cursor: 'pointer',
+    fontWeight: 600,
+  }
+}
+
+function secondaryButtonStyle(colors: { bgSubtle: string; fg: string; border: string }): React.CSSProperties {
+  return {
+    background: colors.bgSubtle,
+    color: colors.fg,
+    border: `1px solid ${colors.border}`,
+    borderRadius: 6,
+    padding: '0.45rem 0.75rem',
+    cursor: 'pointer',
+  }
 }
