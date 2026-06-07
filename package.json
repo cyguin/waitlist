@@ -12,7 +12,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/cyguin/waitlist"
+    "url": "git+https://github.com/cyguin/waitlist.git"
   },
   "type": "module",
   "main": "dist/index.js",
@@ -51,7 +51,9 @@
     "dev": "tsup --watch",
     "test": "vitest run",
     "pack:check": "npm pack --dry-run",
-    "prepublishOnly": "npm run build && npm test && npm run pack:check"
+    "prepublishOnly": "npm run build && npm test && npm run pack:check",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
     "nanoid": "^5.0.7"
