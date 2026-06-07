@@ -1,6 +1,6 @@
 # @cyguin/waitlist
 
-Drop-in email waitlist with position tracking and optional referral loop for Next.js apps.
+Email waitlist with position tracking and an optional referral loop. Drop into any Next.js app.
 
 ## Install
 
@@ -67,7 +67,7 @@ Join the waitlist.
 ```json
 {
   "email": "user@example.com",
-  "referred_by": "TOKEN"  // optional
+  "referred_by": "TOKEN"
 }
 ```
 
@@ -88,7 +88,7 @@ Join the waitlist.
 
 ### GET `/api/waitlist?email=xxx`
 
-Get your position on the waitlist.
+Get your position.
 
 **Response `200`:**
 ```json
@@ -101,16 +101,16 @@ Get your position on the waitlist.
 }
 ```
 
-**Response `404`** — not found:
+**Response `404`:**
 ```json
 { "error": "not_found" }
 ```
 
 ## Referral system
 
-When a user joins via `?ref=TOKEN`, their entry records who referred them. Position is never adjusted based on referral count — referrals are informational only.
+When someone joins via `?ref=TOKEN`, their entry records the referrer. Position is informational only — referrals don't move anyone up.
 
-1. On `POST`, a `referral_token` (the entry's `id`) is returned.
+1. `POST` returns a `referral_token` (the entry's `id`).
 2. Share links like `https://yoursite.com/?ref=TOKEN`.
 3. New joins with `?ref=TOKEN` store the referrer's id.
 
@@ -121,14 +121,14 @@ When a user joins via `?ref=TOKEN`, their entry records who referred them. Posit
 | `className` | `string` | `''` | CSS class for the form container |
 | `placeholder` | `string` | `'Enter your email'` | Input placeholder text |
 | `buttonText` | `string` | `'Join waitlist'` | Button label |
-| `redirectTo` | `string` | — | If provided, redirects here after success with `?ref=TOKEN` |
-| `theme` | `'light' \| 'dark'` | `'dark'` | Visual theme. Pass `'light'` to opt into the light theme. |
+| `redirectTo` | `string` | — | Redirect here after success with `?ref=TOKEN` |
+| `theme` | `'light' \| 'dark'` | `'dark'` | Dark by default. Pass `'light'` to switch |
 | `onSuccess` | `(data: JoinResponse) => void` | — | Callback on successful join |
 | `onError` | `(error: string) => void` | — | Callback on error |
 
 ## Theming
 
-All styling defaults to the cyguin dark theme and uses `--cyguin-*` CSS custom properties. Default tokens:
+Default is dark. Set `--cyguin-*` variables wherever you need:
 
 ```css
 --cyguin-bg: #0a0d17
@@ -144,7 +144,7 @@ All styling defaults to the cyguin dark theme and uses `--cyguin-*` CSS custom p
 --cyguin-shadow: 0 1px 4px rgba(0,0,0,0.08)
 ```
 
-Apply a light theme with the `theme` prop:
+Use `theme="light"` to flip to light mode:
 
 ```tsx
 <WaitlistForm theme="light" />
@@ -155,7 +155,7 @@ Apply a light theme with the `theme` prop:
 | Export | Description |
 |---|---|
 | `@cyguin/waitlist` | Main package entry — types, adapters, handler |
-| `@cyguin/waitlist/next` | Next.js route handler for API route |
+| `@cyguin/waitlist/next` | Next.js route handler |
 | `@cyguin/waitlist/react` | `WaitlistForm` component |
-| `@cyguin/waitlist/adapters/sqlite` | SQLite adapter (better-sqlite3) |
-| `@cyguin/waitlist/adapters/postgres` | Postgres adapter (postgres.js) |
+| `@cyguin/waitlist/adapters/sqlite` | SQLite adapter |
+| `@cyguin/waitlist/adapters/postgres` | Postgres adapter |
